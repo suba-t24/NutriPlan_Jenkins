@@ -3,19 +3,26 @@ const mongoose = require('mongoose');
 const session = require('express-session');
 const passport = require('passport');
 const path = require('path');
+const dotenv = require('dotenv');
+
+dotenv.config();
 
 const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
 const mealRoutes = require('./routes/mealRoutes');
 const initPassport = require('./config/passport');
 const groceryRoutes = require('./routes/groceryRoutes'); // ✅ Grocery list route
+const mongoURI = process.env.MONGO_URI || "mongodb://localhost:27017/nutriplan";
 
 const app = express(); // ✅ MUST be defined before any app.use()
 
 // Connect to MongoDB
-mongoose.connect("mongodb://localhost:27017/nutriplan")
-  .then(() => console.log('✅ MongoDB connected'))
-  .catch(err => console.error('❌ MongoDB connection error:', err));
+mongoose.connect(mongoURI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+})
+  .then(() => console.log('MongoDB connected'))
+  .catch(err => console.error('MongoDB connection error:', err));
 
 // Middleware
 app.use(express.json());

@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  nutriplan-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: nutriplan-app
+    ports:
+      - '3000:3000'
+    environment:
+      - MONGO_URI=mongodb://mongodb:27017/nutriplan
+    depends_on:
+      - mongodb
+
+  mongodb:
+    image: mongo:6.0
+    container_name: nutriplan-mongo
+    restart: always
+    ports:
+      - '27017:27017'
+    volumes:
+      - mongo-data:/data/db
+
+volumes:
+  mongo-data:
