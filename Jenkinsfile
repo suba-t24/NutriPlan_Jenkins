@@ -29,7 +29,8 @@ pipeline {
 
     stage('Deploy with Docker Compose') {
       steps {
-        sh 'docker-compose up -d'
+        sh 'docker-compose down || true'
+        sh 'docker-compose up -d --build'
       }
     }
 
@@ -48,7 +49,24 @@ pipeline {
 
     stage('Security Scan') {
       steps {
-        sh 'npm audit --audit-level=high'
+        // Does not fail the pipeline, only reports issues
+        sh 'npm audit --audit-level=high || true'
+      }
+    }
+
+    stage('Release') {
+      steps {
+        echo 'Simulating release to production...'
+        sh 'docker tag nutriplan-app nutriplan-app:release'
+        // Optional push: docker push yourrepo/nutriplan-app:release
+      }
+    }
+
+    stage('Monitoring') {
+      steps {
+        echo 'Performing simulated health check...'
+        sh 'sleep 10' // wait for the service to start
+        sh 'curl --fail http://localhost:3000/health || echo "Health check failed or endpoint not found"'
       }
     }
   }

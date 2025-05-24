@@ -54,6 +54,9 @@ app.use('/api/user', userRoutes);
 app.use('/api/meal', mealRoutes);
 app.use('/api', groceryRoutes); // ✅ NOW correctly placed after `app` is declared
 
+//Health
+app.get('/health', (req, res) => res.send('OK'));
+
 // 404 Fallback
 app.use((req, res) => {
   res.status(404).send('<h1>404 Not Found</h1>');
