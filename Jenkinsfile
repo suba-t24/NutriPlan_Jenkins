@@ -1,4 +1,4 @@
-current : pipeline {
+pipeline {
   agent any
 
   environment {
@@ -6,6 +6,8 @@ current : pipeline {
     SONAR_TOKEN = credentials('SONAR_TOKEN')
     SONAR_ORG = 'suba-t24'
     SONAR_PROJECT_KEY = 'suba-t24_NutriPlan_Jenkins'
+    TERM = 'xterm'
+    CI = 'true'
   }
 
   stages {
@@ -16,43 +18,40 @@ current : pipeline {
       }
     }
     stage('Start App') {
-        steps {
-            // Start the app in the background
-            sh 'npm start &'
-            
-            // Wait for app to be ready - retry health check
-            script {
-            def maxRetries = 30
-            def waitTime = 2
-            def ready = false
-            for (int i = 0; i < maxRetries; i++) {
-                try {
-                sh 'curl --fail http://localhost:3000/health'
-                ready = true
-                echo "App is ready!"
-                break
-                } catch (err) {
-                echo "Waiting for app to be ready... Attempt ${i + 1}/${maxRetries}"
-                sleep waitTime
-                }
+      steps {
+        sh 'npm start &'
+        script {
+          def maxRetries = 30
+          def waitTime = 2
+          def ready = false
+          for (int i = 0; i < maxRetries; i++) {
+            try {
+              sh 'curl --fail http://localhost:3000/health'
+              ready = true
+              echo "App is ready!"
+              break
+            } catch (err) {
+              echo "Waiting for app to be ready... Attempt ${i + 1}/${maxRetries}"
+              sleep waitTime
             }
-            if (!ready) {
-                error "App did not start in time"
-            }
-            }
+          }
+          if (!ready) {
+            error "App did not start in time"
+          }
         }
+      }
     }
 
     stage('Test') {
       steps {
-        sh 'npm run test'
+        sh 'npx cypress run --headless'
       }
     }
 
     stage('Stop App') {
-        steps {
-            sh "pkill -f 'node'"
-        }
+      steps {
+        sh "pkill -f 'node'"
+      }
     }
 
     stage('Build Docker Image') {
@@ -83,7 +82,6 @@ current : pipeline {
 
     stage('Security Scan') {
       steps {
-        // Does not fail the pipeline, only reports issues
         sh 'npm audit --audit-level=high || true'
       }
     }
@@ -92,14 +90,13 @@ current : pipeline {
       steps {
         echo 'Simulating release to production...'
         sh 'docker tag nutriplan-app nutriplan-app:release'
-        // Optional push: docker push yourrepo/nutriplan-app:release
       }
     }
 
     stage('Monitoring') {
       steps {
         echo 'Performing simulated health check...'
-        sh 'sleep 10' // wait for the service to start
+        sh 'sleep 10'
         sh 'curl --fail http://localhost:3000/health || echo "Health check failed or endpoint not found"'
       }
     }
