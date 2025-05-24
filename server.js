@@ -7,9 +7,9 @@ const dotenv = require('dotenv');
 
 dotenv.config();
 
-const authRoutes = require('./routes/authRoutes');
+const authRoutes = require('./routes/authroutes');
 const userRoutes = require('./routes/userRoutes');
-const mealRoutes = require('./routes/mealRoutes');
+const mealRoutes = require('./routes/mealroutes');
 const initPassport = require('./config/passport');
 const groceryRoutes = require('./routes/groceryRoutes'); // ✅ Grocery list route
 const mongoURI = process.env.MONGO_URI || "mongodb://localhost:27017/nutriplan";
