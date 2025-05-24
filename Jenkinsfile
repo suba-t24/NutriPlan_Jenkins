@@ -15,11 +15,44 @@ current : pipeline {
         sh 'npm run lint'
       }
     }
+    stage('Start App') {
+        steps {
+            // Start the app in the background
+            sh 'npm start &'
+            
+            // Wait for app to be ready - retry health check
+            script {
+            def maxRetries = 30
+            def waitTime = 2
+            def ready = false
+            for (int i = 0; i < maxRetries; i++) {
+                try {
+                sh 'curl --fail http://localhost:3000/health'
+                ready = true
+                echo "App is ready!"
+                break
+                } catch (err) {
+                echo "Waiting for app to be ready... Attempt ${i + 1}/${maxRetries}"
+                sleep waitTime
+                }
+            }
+            if (!ready) {
+                error "App did not start in time"
+            }
+            }
+        }
+    }
 
     stage('Test') {
       steps {
         sh 'npm run test'
       }
+    }
+
+    stage('Stop App') {
+        steps {
+            sh "pkill -f 'node'"
+        }
     }
 
     stage('Build Docker Image') {
