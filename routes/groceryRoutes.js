@@ -48,8 +48,6 @@ router.get('/grocery-list', async (req, res) => {
       // Fats
       'olive oil': 'fats',
       'coconut milk': 'fats',
-      'cheddar cheese': 'fats',
-      'feta cheese': 'fats',
 
       // Fiber
       broccoli: 'fiber',
@@ -100,7 +98,6 @@ router.get('/grocery-list', async (req, res) => {
 
     for (const [item, amount] of Object.entries(quantities)) {
       let quantity = '';
-      let unit = 'g';
 
       if (liquidItems.includes(item)) {
         quantity = `${(amount / 1000).toFixed(2)} liters`;
