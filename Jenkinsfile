@@ -1,4 +1,4 @@
-pipeline {
+current : pipeline {
   agent any
 
   environment {
@@ -16,25 +16,9 @@ pipeline {
       }
     }
 
-    stage('Start App') {
-      steps {
-        // Start your node app in background
-        sh 'npm start &'
-        // Wait for app to be ready (adjust timing if needed)
-        sh 'sleep 10'
-      }
-    }
-
     stage('Test') {
       steps {
         sh 'npm run test'
-      }
-    }
-
-    stage('Stop App') {
-      steps {
-        // Kill node processes started by npm start to free port 3000
-        sh "pkill -f 'node'"
       }
     }
 
@@ -66,6 +50,7 @@ pipeline {
 
     stage('Security Scan') {
       steps {
+        // Does not fail the pipeline, only reports issues
         sh 'npm audit --audit-level=high || true'
       }
     }
@@ -74,13 +59,14 @@ pipeline {
       steps {
         echo 'Simulating release to production...'
         sh 'docker tag nutriplan-app nutriplan-app:release'
+        // Optional push: docker push yourrepo/nutriplan-app:release
       }
     }
 
     stage('Monitoring') {
       steps {
         echo 'Performing simulated health check...'
-        sh 'sleep 10'
+        sh 'sleep 10' // wait for the service to start
         sh 'curl --fail http://localhost:3000/health || echo "Health check failed or endpoint not found"'
       }
     }
