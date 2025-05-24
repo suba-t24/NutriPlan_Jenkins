@@ -2,7 +2,7 @@ pipeline {
   agent any
 
   environment {
-    PATH = "/opt/homebrew/bin:$PATH"
+    PATH = "/opt/homebrew/bin:/usr/local/bin:${env.PATH}"
     SONAR_TOKEN = credentials('SONAR_TOKEN')
     SONAR_ORG = 'suba-t24'
     SONAR_PROJECT_KEY = 'suba-t24_NutriPlan_Jenkins'
