@@ -61,6 +61,8 @@ app.get('/health', (req, res) => res.send('OK'));
 app.use((req, res) => {
   res.status(404).send('<h1>404 Not Found</h1>');
 });
-const PORT = process.env.PORT;
+const PORT = process.env.PORT || 3000;
 // Start server
-app.listen(PORT, () => console.log(`🚀 Server running on http://localhost:${PORT}`));
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`🚀 Server running on http://localhost:${PORT}`);
+});
