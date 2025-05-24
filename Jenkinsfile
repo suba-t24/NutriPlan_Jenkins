@@ -43,10 +43,14 @@ pipeline {
     }
 
     stage('Test') {
-      steps {
-        sh 'npx cypress run --headless'
-      }
-    }
+  steps {
+    sh '''
+      export CI=true
+      export TERM=xterm
+      npx cypress run --headless --no-sandbox
+    '''
+  }
+}
 
     stage('Stop App') {
       steps {
