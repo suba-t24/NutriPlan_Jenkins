@@ -1,60 +1,55 @@
 pipeline {
-    agent any
+  agent any
 
-    environment {
-        SONAR_TOKEN = credentials('SONAR_TOKEN') // Jenkins credential ID
-        DOCKER_IMAGE = 'nutriplan-app:latest'
-        SONAR_PROJECT_KEY = 'suba-t24_NutriPlan_Jenkins'
-        SONAR_ORG = 'suba-t24'
-        SONAR_HOST_URL = 'https://sonarcloud.io'
+  environment {
+    SONAR_TOKEN = credentials('SONAR_TOKEN')
+    SONAR_ORG = 'suba-t24' // Replace with your actual org
+    SONAR_PROJECT_KEY = 'suba-t24_NutriPlan_Jenkins'
+  }
+
+  stages {
+    stage('Lint') {
+      steps {
+        sh 'npm install'
+        sh 'npm run lint'
+      }
     }
 
-    stages {
-        stage('Lint') {
-            steps {
-                sh 'npm run lint'
-            }
-        }
-
-        stage('Test') {
-            steps {
-                sh 'npm run test'
-            }
-        }
-
-        stage('Build Docker Image') {
-            steps {
-                script {
-                    docker.build(DOCKER_IMAGE)
-                }
-            }
-        }
-
-        stage('SonarCloud Scan') {
-            steps {
-                withSonarQubeEnv('SonarCloud') { // Ensure 'SonarCloud' is configured in Jenkins under SonarQube servers
-                    sh """
-                        sonar-scanner \
-                        -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
-                        -Dsonar.organization=${SONAR_ORG} \
-                        -Dsonar.host.url=${SONAR_HOST_URL} \
-                        -Dsonar.login=${SONAR_TOKEN}
-                    """
-                }
-            }
-        }
-
-        stage('Deploy') {
-            steps {
-                sh 'docker-compose up -d'
-            }
-        }
+    stage('Test') {
+      steps {
+        sh 'npm run test'
+      }
     }
 
-    post {
-        always {
-            echo 'Cleaning up...'
-            sh 'docker-compose down'
-        }
+    stage('Build Docker Image') {
+      steps {
+        sh 'docker build -t nutriplan-app .'
+      }
     }
+
+    stage('Deploy with Docker Compose') {
+      steps {
+        sh 'docker-compose up -d'
+      }
+    }
+
+    stage('SonarCloud Code Analysis') {
+      steps {
+        sh '''
+          npm install -g sonar-scanner
+          sonar-scanner \
+            -Dsonar.projectKey=$SONAR_PROJECT_KEY \
+            -Dsonar.organization=$SONAR_ORG \
+            -Dsonar.host.url=https://sonarcloud.io \
+            -Dsonar.login=$SONAR_TOKEN
+        '''
+      }
+    }
+
+    stage('Security Scan') {
+      steps {
+        sh 'npm audit --audit-level=high'
+      }
+    }
+  }
 }
