@@ -3,7 +3,7 @@ pipeline {
 
   environment {
     SONAR_TOKEN = credentials('SONAR_TOKEN')
-    SONAR_ORG = 'suba-t24' // Replace with your actual org
+    SONAR_ORG = 'suba-t24'
     SONAR_PROJECT_KEY = 'suba-t24_NutriPlan_Jenkins'
   }
 
