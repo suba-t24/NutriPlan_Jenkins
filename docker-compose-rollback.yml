@@ -2,10 +2,7 @@ version: '3.8'
 
 services:
   nutriplan-app:
-    image: nutriplan-app:${VERSION:-latest}
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: nutriplan-app:previous-stable
     container_name: nutriplan-app
     ports:
       - '3001:3000'
