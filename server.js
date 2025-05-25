@@ -17,10 +17,7 @@ const mongoURI = process.env.MONGO_URI || "mongodb://localhost:27017/nutriplan";
 const app = express(); // ✅ MUST be defined before any app.use()
 
 // Connect to MongoDB
-mongoose.connect(mongoURI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-})
+mongoose.connect(mongoURI)
   .then(() => console.log('MongoDB connected'))
   .catch(err => console.error('MongoDB connection error:', err));
 
