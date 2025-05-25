@@ -11,14 +11,19 @@ pipeline {
   }
 
   stages {
-    stage('Install & Lint') {
+
+    stage('Install Dependencies') {
       steps {
         sh 'npm install'
-        sh 'npm run lint'
       }
     }
 
-    stage('Test') {
+    stage('Lint') {
+      steps {
+        sh 'npm run lint'
+      }
+    }
+    stage('Unit Tests') {
       steps {
         sh 'npm run test'
       }

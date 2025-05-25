@@ -7,7 +7,7 @@
     "start": "node server.js",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "test": "cypress run"
+    "test": "cypress run --reporter mocha --reporter-options colors=false"
   },
   "author": "Subathira Thinakaran",
   "license": "ISC",
