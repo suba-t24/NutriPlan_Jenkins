@@ -25,7 +25,7 @@ pipeline {
     }
     stage('Unit Tests') {
       steps {
-        sh 'FORCE_COLOR=0 npx cypress run'
+       sh 'FORCE_COLOR=0 npx cypress run --reporter spec --reporter-options colors=false'
       }
     }
 
