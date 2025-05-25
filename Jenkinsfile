@@ -25,7 +25,7 @@ pipeline {
     }
     stage('Unit Tests') {
       steps {
-        sh 'npm run test'
+        sh 'FORCE_COLOR=0 npx cypress run'
       }
     }
 
