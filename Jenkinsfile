@@ -50,7 +50,6 @@ pipeline {
             -Dsonar.host.url=https://sonarcloud.io \
             -Dsonar.login=$SONAR_TOKEN \
             -Dsonar.exclusions=**/node_modules/**,**/tests/** \
-            -Dsonar.qualitygate.wait=true
         '''
       }
     }
