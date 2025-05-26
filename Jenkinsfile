@@ -65,7 +65,7 @@ pipeline {
 
     stage('Push to ECR') {
       steps {
-        withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-jenkins-creds']]) {
+        withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'AWSCredsJenkinsDevUser']]) {
           script {
             def ecrRepo = "245499663438.dkr.ecr.us-east-1.amazonaws.com/nutriplan-app"
             sh """
@@ -87,7 +87,7 @@ pipeline {
 
     stage('Deploy to ECS') {
       steps {
-        withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-jenkins-creds']]) {
+        withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'AWSCredsJenkinsDevUser']]) {
           script {
             def template = readFile('ecs-task-def-template.json')
             def versioned = template.replace('${VERSION}', "${VERSION}")
