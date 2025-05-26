@@ -1,0 +1,29 @@
+{
+  "family": "nutriplan-task",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "256",
+  "memory": "512",
+  "executionRoleArn": "arn:aws:iam::245499663438:role/ecsTaskExecutionRole",
+  "containerDefinitions": [
+    {
+      "name": "nutriplan",
+      "image": "245499663438.dkr.ecr.us-east-1.amazonaws.com/nutriplan-app:${VERSION}",
+      "essential": true,
+      "portMappings": [
+        {
+          "containerPort": 3000,
+          "protocol": "tcp"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/nutriplan",
+          "awslogs-region": "us-east-1",
+          "awslogs-stream-prefix": "ecs"
+        }
+      }
+    }
+  ]
+}
