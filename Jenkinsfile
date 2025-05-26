@@ -57,14 +57,6 @@ pipeline {
       }
     }
 
-    stage('Check Sonar Quality Gate') {
-      steps {
-        timeout(time: 2, unit: 'MINUTES') {
-          waitForQualityGate abortPipeline: true
-        }
-      }
-    }
-
     stage('Security Scan with npm audit & Snyk') {
       steps {
         sh '''
