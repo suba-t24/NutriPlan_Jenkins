@@ -8,9 +8,11 @@ pipeline {
     SONAR_PROJECT_KEY = 'suba-t24_NutriPlan_Jenkins'
     DOCKER_IMAGE = "nutriplan-app"
     VERSION = "v1.${BUILD_NUMBER}"
+    DOCKER_HUB_USER = 'your-dockerhub-username'
     AWS_DEFAULT_REGION = 'us-east-1'
     EB_APP_NAME = 'nutriplan-eb-app'
     EB_ENV_NAME = 'nutriplan-env'
+    SNYK_TOKEN = credentials('SNYK_TOKEN')
   }
 
   stages {
@@ -55,9 +57,38 @@ pipeline {
       }
     }
 
-    stage('Security Scan') {
+    stage('Check Sonar Quality Gate') {
       steps {
-        sh 'npm audit --audit-level=high || true'
+        timeout(time: 2, unit: 'MINUTES') {
+          waitForQualityGate abortPipeline: true
+        }
+      }
+    }
+
+    stage('Security Scan with npm audit & Snyk') {
+      steps {
+        sh '''
+          echo "Running npm audit..."
+          npm audit --audit-level=high || true
+
+          echo "Running Snyk scan..."
+          npm install -g snyk
+          snyk auth $SNYK_TOKEN
+          snyk test || echo "Snyk scan found issues. See output above."
+        '''
+      }
+    }
+
+    stage('Push Docker Image to Docker Hub') {
+      steps {
+        withCredentials([usernamePassword(credentialsId: 'DOCKER_HUB_CREDENTIALS', passwordVariable: 'DOCKER_PASS', usernameVariable: 'DOCKER_USER')]) {
+          sh '''
+            echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+            docker tag $DOCKER_IMAGE:$VERSION $DOCKER_USER/$DOCKER_IMAGE:$VERSION
+            docker push $DOCKER_USER/$DOCKER_IMAGE:$VERSION
+            docker push $DOCKER_USER/$DOCKER_IMAGE:latest
+          '''
+        }
       }
     }
 
@@ -77,20 +108,20 @@ pipeline {
       }
     }
 
-    stage('CloudWatch Metrics Check') {
+    stage('CloudWatch Metrics Check & Alert Simulation') {
       steps {
         withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'AWSCredsJenkinsDevUser']]) {
           sh '''
             echo "Checking CloudWatch metrics for environment health..."
-            
+
             if date --version >/dev/null 2>&1; then
               START_TIME=$(date -u -d '10 minutes ago' +%Y-%m-%dT%H:%M:%SZ)
             else
               START_TIME=$(date -u -v -10M +%Y-%m-%dT%H:%M:%SZ)
             fi
-            
+
             END_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-            
+
             aws cloudwatch get-metric-statistics \
               --namespace AWS/ElasticBeanstalk \
               --metric-name HealthStatus \
@@ -105,11 +136,13 @@ pipeline {
       }
     }
 
-    stage('Release') {
+    stage('Release Tagging') {
       steps {
         sh '''
-          docker tag $DOCKER_IMAGE:$VERSION $DOCKER_IMAGE:release
-          echo "Release image tagged."
+          git config --global user.email "jenkins@ci.com"
+          git config --global user.name "Jenkins CI"
+          git tag -a $VERSION -m "Release version $VERSION"
+          git push origin $VERSION || echo "Git push skipped or failed."
         '''
       }
     }
@@ -127,13 +160,13 @@ pipeline {
 
   post {
     success {
-      echo "Build succeeded!"
+      echo "✅ Build and Deployment Successful!"
     }
     failure {
-      echo "Build failed!"
+      echo "❌ Build or Deployment Failed!"
     }
     always {
-      echo 'Cleaning up workspace...'
+      echo '🧹 Cleaning up workspace...'
       cleanWs()
     }
   }
