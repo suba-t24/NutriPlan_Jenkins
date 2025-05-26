@@ -165,13 +165,13 @@ pipeline {
 
   post {
     success {
-      echo "✅ Build and Deployment Successful!"
+      echo "Build and Deployment Successful!"
     }
     failure {
-      echo "❌ Build or Deployment Failed!"
+      echo "Build or Deployment Failed!"
     }
     always {
-      echo '🧹 Cleaning up workspace...'
+      echo 'Cleaning up workspace...'
       cleanWs()
     }
   }
