@@ -9,8 +9,6 @@ pipeline {
     DOCKER_IMAGE = "nutriplan-app"
     VERSION = "v1.${BUILD_NUMBER}"
     AWS_DEFAULT_REGION = 'us-east-1'
-    AWS_ACCESS_KEY_ID = credentials('aws-jenkins-creds').get('accessKey')
-    AWS_SECRET_ACCESS_KEY = credentials('aws-jenkins-creds').get('secretKey')
     ECS_CLUSTER = "nutriplan-cluster"
     ECS_SERVICE = "nutriplan-service"
     ECS_TASK_FAMILY = "nutriplan-task"
@@ -67,48 +65,50 @@ pipeline {
 
     stage('Push to ECR') {
       steps {
-        script {
-          def ecrRepo = "245499663438.dkr.ecr.us-east-1.amazonaws.com/nutriplan-app"
-          sh """
-            echo "Authenticating to AWS ECR..."
-            aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $ecrRepo
+        withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-jenkins-creds']]) {
+          script {
+            def ecrRepo = "245499663438.dkr.ecr.us-east-1.amazonaws.com/nutriplan-app"
+            sh """
+              echo "Authenticating to AWS ECR..."
+              aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $ecrRepo
 
-            echo "Tagging Docker image with version and latest..."
-            docker tag $DOCKER_IMAGE:$VERSION $ecrRepo:$VERSION
-            docker tag $DOCKER_IMAGE:$VERSION $ecrRepo:latest
+              echo "Tagging Docker image with version and latest..."
+              docker tag $DOCKER_IMAGE:$VERSION $ecrRepo:$VERSION
+              docker tag $DOCKER_IMAGE:$VERSION $ecrRepo:latest
 
-            echo "Pushing image to ECR..."
-            docker push $ecrRepo:$VERSION
-            docker push $ecrRepo:latest
-          """
+              echo "Pushing image to ECR..."
+              docker push $ecrRepo:$VERSION
+              docker push $ecrRepo:latest
+            """
+          }
         }
       }
     }
 
     stage('Deploy to ECS') {
       steps {
-        script {
-          // Read template and replace placeholder
-          def template = readFile('ecs-task-def-template.json')
-          def versioned = template.replace('${VERSION}', "${VERSION}")
-          writeFile file: 'ecs-task-def.json', text: versioned
+        withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-jenkins-creds']]) {
+          script {
+            def template = readFile('ecs-task-def-template.json')
+            def versioned = template.replace('${VERSION}', "${VERSION}")
+            writeFile file: 'ecs-task-def.json', text: versioned
 
-          // Register and deploy new task definition
-          sh """
-            echo "Registering ECS Task Definition..."
-            aws ecs register-task-definition --cli-input-json file://ecs-task-def.json
+            sh """
+              echo "Registering ECS Task Definition..."
+              aws ecs register-task-definition --cli-input-json file://ecs-task-def.json
 
-            echo "Deploying new version to ECS..."
-            aws ecs update-service \
-              --cluster $ECS_CLUSTER \
-              --service $ECS_SERVICE \
-              --force-new-deployment
+              echo "Deploying new version to ECS..."
+              aws ecs update-service \
+                --cluster $ECS_CLUSTER \
+                --service $ECS_SERVICE \
+                --force-new-deployment
 
-            echo "Waiting for service stability..."
-            aws ecs wait services-stable --cluster $ECS_CLUSTER --services $ECS_SERVICE
+              echo "Waiting for service stability..."
+              aws ecs wait services-stable --cluster $ECS_CLUSTER --services $ECS_SERVICE
 
-            echo "Deployment complete and service stable."
-          """
+              echo "Deployment complete and service stable."
+            """
+          }
         }
       }
     }
@@ -136,34 +136,34 @@ pipeline {
 
     stage('Rollback') {
       steps {
-        script {
-          // Fetch current and previous task definition revision numbers
-          def currentRevision = sh(
-            script: "aws ecs describe-services --cluster $ECS_CLUSTER --services $ECS_SERVICE --query 'services[0].taskDefinition' --output text | awk -F ':' '{print \$2}'",
-            returnStdout: true
-          ).trim()
+        withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-jenkins-creds']]) {
+          script {
+            def currentRevision = sh(
+              script: "aws ecs describe-services --cluster $ECS_CLUSTER --services $ECS_SERVICE --query 'services[0].taskDefinition' --output text | awk -F ':' '{print \$2}'",
+              returnStdout: true
+            ).trim()
 
-          // Rollback to previous revision (currentRevision - 1)
-          def previousRevision = (currentRevision.toInteger() - 1).toString()
+            def previousRevision = (currentRevision.toInteger() - 1).toString()
 
-          echo "Current revision: ${currentRevision}"
-          echo "Previous revision: ${previousRevision}"
+            echo "Current revision: ${currentRevision}"
+            echo "Previous revision: ${previousRevision}"
 
-          input message: "Trigger rollback to revision ${previousRevision}?"
+            input message: "Trigger rollback to revision ${previousRevision}?"
 
-          sh """
-            echo "Rolling back to previous task definition revision..."
-            aws ecs update-service \
-              --cluster $ECS_CLUSTER \
-              --service $ECS_SERVICE \
-              --task-definition ${ECS_TASK_FAMILY}:${previousRevision} \
-              --force-new-deployment
+            sh """
+              echo "Rolling back to previous task definition revision..."
+              aws ecs update-service \
+                --cluster $ECS_CLUSTER \
+                --service $ECS_SERVICE \
+                --task-definition ${ECS_TASK_FAMILY}:${previousRevision} \
+                --force-new-deployment
 
-            echo "Waiting for service stability after rollback..."
-            aws ecs wait services-stable --cluster $ECS_CLUSTER --services $ECS_SERVICE
+              echo "Waiting for service stability after rollback..."
+              aws ecs wait services-stable --cluster $ECS_CLUSTER --services $ECS_SERVICE
 
-            echo "Rollback complete and service stable."
-          """
+              echo "Rollback complete and service stable."
+            """
+          }
         }
       }
     }
