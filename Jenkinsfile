@@ -8,7 +8,6 @@ pipeline {
     SONAR_PROJECT_KEY = 'suba-t24_NutriPlan_Jenkins'
     DOCKER_IMAGE = "nutriplan-app"
     VERSION = "v1.${BUILD_NUMBER}"
-    DOCKER_HUB_USER = 'your-dockerhub-username'
     AWS_DEFAULT_REGION = 'us-east-1'
     EB_APP_NAME = 'nutriplan-eb-app'
     EB_ENV_NAME = 'nutriplan-env'
@@ -71,18 +70,32 @@ pipeline {
       }
     }
 
-    stage('Push Docker Image to Docker Hub') {
-      steps {
-        withCredentials([usernamePassword(credentialsId: 'DOCKER_HUB_CREDENTIALS', passwordVariable: 'DOCKER_PASS', usernameVariable: 'DOCKER_USER')]) {
-          sh '''
-            echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
-            docker tag $DOCKER_IMAGE:$VERSION $DOCKER_USER/$DOCKER_IMAGE:$VERSION
-            docker push $DOCKER_USER/$DOCKER_IMAGE:$VERSION
-            docker push $DOCKER_USER/$DOCKER_IMAGE:latest
-          '''
-        }
-      }
+  stage('Push Docker Image to Amazon ECR') {
+  steps {
+    withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'AWSCredsJenkinsDevUser']]) {
+      sh '''
+        AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+        ECR_REPO_NAME=nutriplan-app
+        ECR_IMAGE=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$ECR_REPO_NAME
+
+        # Authenticate Docker with ECR
+        aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $ECR_IMAGE
+
+        # Create repo if it doesn't exist
+        aws ecr describe-repositories --repository-names $ECR_REPO_NAME || \
+        aws ecr create-repository --repository-name $ECR_REPO_NAME
+
+        # Tag and push
+        docker tag $DOCKER_IMAGE:$VERSION $ECR_IMAGE:$VERSION
+        docker tag $DOCKER_IMAGE:$VERSION $ECR_IMAGE:latest
+
+        docker push $ECR_IMAGE:$VERSION
+        docker push $ECR_IMAGE:latest
+      '''
     }
+  }
+}
+
 
     stage('Deploy to Elastic Beanstalk') {
       steps {
