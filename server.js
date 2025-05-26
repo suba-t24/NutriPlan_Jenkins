@@ -12,7 +12,7 @@ const userRoutes = require('./routes/userRoutes');
 const mealRoutes = require('./routes/mealroutes');
 const initPassport = require('./config/passport');
 const groceryRoutes = require('./routes/groceryRoutes'); // ✅ Grocery list route
-const mongoURI = process.env.MONGO_URI || "mongodb://localhost:27017/nutriplan";
+const mongoURI = process.env.MONGO_URI || "mongodb+srv://tsubi1024:databasepass@cluster0.0q9wgxy.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
 
 const app = express(); // ✅ MUST be defined before any app.use()
 
