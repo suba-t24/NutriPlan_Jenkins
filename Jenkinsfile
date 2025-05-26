@@ -82,12 +82,21 @@ pipeline {
         withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'AWSCredsJenkinsDevUser']]) {
           sh '''
             echo "Checking CloudWatch metrics for environment health..."
+            
+            if date --version >/dev/null 2>&1; then
+              START_TIME=$(date -u -d '10 minutes ago' +%Y-%m-%dT%H:%M:%SZ)
+            else
+              START_TIME=$(date -u -v -10M +%Y-%m-%dT%H:%M:%SZ)
+            fi
+            
+            END_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+            
             aws cloudwatch get-metric-statistics \
               --namespace AWS/ElasticBeanstalk \
               --metric-name HealthStatus \
               --dimensions Name=EnvironmentName,Value=${EB_ENV_NAME} \
-              --start-time $(date -u -d '10 minutes ago' +%Y-%m-%dT%H:%M:%SZ) \
-              --end-time $(date -u +%Y-%m-%dT%H:%M:%SZ) \
+              --start-time $START_TIME \
+              --end-time $END_TIME \
               --period 300 \
               --statistics Average \
               --region ${AWS_DEFAULT_REGION}
