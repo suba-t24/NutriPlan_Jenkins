@@ -32,16 +32,7 @@ pipeline {
         sh 'FORCE_COLOR=0 npx cypress run --reporter spec --reporter-options colors=false'
       }
     }
-
-    stage('Build Docker Image') {
-      steps {
-        sh '''
-          docker build -t $DOCKER_IMAGE:$VERSION .
-          docker tag $DOCKER_IMAGE:$VERSION $DOCKER_IMAGE:latest
-        '''
-      }
-    }
-
+    
     stage('SonarCloud Code Analysis') {
       steps {
         sh '''
@@ -70,48 +61,56 @@ pipeline {
       }
     }
 
-  stage('Push Docker Image to Amazon ECR') {
-  steps {
-    withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'AWSCredsJenkinsDevUser']]) {
-      sh '''
-        AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-        ECR_REPO_NAME=nutriplan-app
-        ECR_IMAGE=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$ECR_REPO_NAME
-
-        # Authenticate Docker with ECR
-        aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $ECR_IMAGE
-
-        # Create repo if it doesn't exist
-        aws ecr describe-repositories --repository-names $ECR_REPO_NAME || \
-        aws ecr create-repository --repository-name $ECR_REPO_NAME
-
-        # Tag and push
-        docker tag $DOCKER_IMAGE:$VERSION $ECR_IMAGE:$VERSION
-        docker tag $DOCKER_IMAGE:$VERSION $ECR_IMAGE:latest
-
-        docker push $ECR_IMAGE:$VERSION
-        docker push $ECR_IMAGE:latest
-      '''
+    stage('Build Docker Image') {
+      steps {
+        sh '''
+          docker build -t $DOCKER_IMAGE:$VERSION .
+          docker tag $DOCKER_IMAGE:$VERSION $DOCKER_IMAGE:latest
+        '''
+      }
     }
-  }
-}
 
-
-    stage('Deploy to Elastic Beanstalk') {
+    stage('Push Docker Image to Amazon ECR') {
       steps {
         withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'AWSCredsJenkinsDevUser']]) {
           sh '''
-            export AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
-            export AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
-            export AWS_DEFAULT_REGION=$AWS_DEFAULT_REGION
+            AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+            ECR_REPO_NAME=nutriplan-app
+            ECR_IMAGE=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$ECR_REPO_NAME
 
-            eb init $EB_APP_NAME --platform docker --region $AWS_DEFAULT_REGION
-            eb use $EB_ENV_NAME
-            eb deploy --staged
+            # Authenticate Docker with ECR
+            aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $ECR_IMAGE
+
+            # Create repo if it doesn't exist
+            aws ecr describe-repositories --repository-names $ECR_REPO_NAME || \
+            aws ecr create-repository --repository-name $ECR_REPO_NAME
+
+            # Tag and push
+            docker tag $DOCKER_IMAGE:$VERSION $ECR_IMAGE:$VERSION
+            docker tag $DOCKER_IMAGE:$VERSION $ECR_IMAGE:latest
+
+            docker push $ECR_IMAGE:$VERSION
+            docker push $ECR_IMAGE:latest
           '''
         }
       }
     }
+
+    stage('Deploy to Elastic Beanstalk') {
+        steps {
+          withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'AWSCredsJenkinsDevUser']]) {
+            sh '''
+              export AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
+              export AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
+              export AWS_DEFAULT_REGION=$AWS_DEFAULT_REGION
+
+              eb init $EB_APP_NAME --platform docker --region $AWS_DEFAULT_REGION
+              eb use $EB_ENV_NAME
+              eb deploy --staged
+            '''
+          }
+        }
+      }
 
     stage('CloudWatch Metrics Check & Alert Simulation') {
       steps {
