@@ -23,20 +23,27 @@ function sumNutrients(meals) {
 async function createWeeklyPlan(user, excludeMealIds = [], daysCount = 7) {
   const bmr = calculateBMR(user);
   const targetCalories = adjustCalories(bmr, user.goal, user.activityLevel);
-  const dailyCalorieTarget = targetCalories / user.mealsPerDay;
-  const baseMargin = 150;
 
+  if (!targetCalories || isNaN(targetCalories)) {
+    throw new Error('Invalid target calories calculated for user.');
+  }
+
+  const dailyCalorieTarget = targetCalories / user.mealsPerDay;
+  if (!dailyCalorieTarget || isNaN(dailyCalorieTarget)) {
+    throw new Error('Invalid daily calorie target.');
+  }
+
+  const baseMargin = 150;
   const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
   const todayIndex = new Date().getDay();
   const sortedDays = [...daysOfWeek.slice(todayIndex), ...daysOfWeek.slice(0, todayIndex)];
 
   const weeklyPlan = [];
-  const recentDaysMeals = []; // Store meal IDs from previous 2 days
+  const recentDaysMeals = [];
 
   for (let i = 0; i < daysCount; i++) {
     const day = sortedDays[i];
 
-    // Exclude meals used in the last 2 days + those passed into the function
     const exclusionList = [...recentDaysMeals.flat(), ...excludeMealIds];
 
     let query = {
@@ -51,7 +58,6 @@ async function createWeeklyPlan(user, excludeMealIds = [], daysCount = 7) {
 
     let meals = await Meal.find(query).limit(user.mealsPerDay);
 
-    // Fallback if not enough meals found
     if (meals.length < user.mealsPerDay) {
       const fallbackQuery = {
         diet: user.dietType,
@@ -66,13 +72,12 @@ async function createWeeklyPlan(user, excludeMealIds = [], daysCount = 7) {
 
     const todaysMealIds = meals.map(meal => meal._id.toString());
 
-    // Update rolling 2-day memory
     recentDaysMeals.push(todaysMealIds);
     if (recentDaysMeals.length > 2) {
       recentDaysMeals.shift();
     }
 
-    const totalCalories = meals.reduce((sum, meal) => sum + meal.calories, 0);
+    const totalCalories = meals.reduce((sum, meal) => sum + (meal.calories || 0), 0);
     const totalNutrients = sumNutrients(meals);
 
     weeklyPlan.push({
@@ -85,6 +90,7 @@ async function createWeeklyPlan(user, excludeMealIds = [], daysCount = 7) {
 
   return { weeklyPlan, targetCalories };
 }
+
 
 exports.generateMealPlan = async (req, res) => {
   try {
